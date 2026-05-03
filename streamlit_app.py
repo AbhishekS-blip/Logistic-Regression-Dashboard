@@ -217,25 +217,33 @@ else:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- DATASET ----------------
+# ---------------- DATASET ----------------
 elif page == "Dataset":
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     st.title("📂 Dataset Input")
 
-    # 🔥 ADD SAMPLE DATASET BUTTON
-    if st.button("📊 Load Sample Dataset"):
-        df = pd.read_csv("sample_data.csv")   # file must exist
-        st.session_state.df = df
-        st.success("Sample dataset loaded!")
-
-    # 🔹 FILE UPLOAD
+    # 🔹 FILE UPLOAD (FIRST DEFINE THIS)
     file = st.file_uploader("Upload CSV")
 
-    if file:
+    if file is not None:
         df = pd.read_csv(file)
         st.session_state.df = df
         st.success("Dataset loaded")
+
+    # 🔥 SAMPLE DATASET BUTTON
+    if st.button("📊 Load Sample Dataset"):
+
+        from sklearn.datasets import load_breast_cancer
+
+        data = load_breast_cancer()
+        df = pd.DataFrame(data.data, columns=data.feature_names)
+        df["target"] = data.target
+
+        st.session_state.df = df
+
+        st.success("✅ Sample dataset loaded")
 
     # 🔹 DISPLAY DATA
     if st.session_state.df is not None:
@@ -247,38 +255,49 @@ elif page == "Dataset":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- PREPROCESSING ----------------
+# ---------------- PREPROCESSING ----------------
+# ---------------- PREPROCESSING ----------------
 elif page == "Preprocessing":
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    st.title("⚙️ Preprocessing")
-
-    df = st.session_state.df
-
-    if df is None:
-        st.warning("Upload dataset first")
+    if st.session_state.df is None:
+        st.warning("⚠️ Upload dataset first")
     else:
-        target = st.selectbox("Select Target Column", df.columns)
+        df = st.session_state.df.copy()
 
-        if st.button("Apply Preprocessing"):
+        st.subheader("🎯 Select Target Column")
 
-            X = df.drop(columns=[target])
-            y = df[target]
+        target_col = st.selectbox("Choose target column", df.columns)
 
-            for col in X.select_dtypes(include="object"):
-                X[col] = LabelEncoder().fit_transform(X[col])
+        X = df.drop(columns=[target_col])
+        y = df[target_col]
 
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+        # 🔥 HANDLE CONTINUOUS TARGET
+        if y.dtype != 'object':
+            if y.nunique() > 10:
+                st.warning("⚠️ Target seems continuous → converting to binary")
+                y = (y > y.median()).astype(int)
 
-            st.session_state.X = X_scaled
-            st.session_state.y = y
-            st.session_state.scaler = scaler
-            st.session_state.feature_names = list(X.columns)
+        # 🔥 ENCODE CATEGORICAL FEATURES
+        for col in X.select_dtypes(include=['object']).columns:
+            le = LabelEncoder()
+            X[col] = le.fit_transform(X[col])
 
-            st.success("Preprocessing done")
+        # 🔥 SCALE FEATURES
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+        # 🔥 SAVE EVERYTHING
+        st.session_state.X = X_scaled
+        st.session_state.y = y
+        st.session_state.scaler = scaler
+        st.session_state.feature_names = X.columns.tolist()
+
+        st.success("✅ Preprocessing completed successfully")
+
+        # 🔹 SHOW PREVIEW
+        st.subheader("Preview (Scaled Features)")
+        st.dataframe(pd.DataFrame(X_scaled, columns=X.columns).head())
 
 # ---------------- EDA ----------------
 elif page == "EDA":
@@ -400,38 +419,66 @@ elif page == "Training":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- PREDICTION ----------------
-elif page == "Prediction":
+    if "feature_names" not in st.session_state:
+        st.warning("⚠️ Please run preprocessing first")
+        st.stop()
+# ---------------- PREDICTION ----------------
+    elif page == "Prediction":
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    st.title("🔮 Prediction")
+        st.title("🔮 Prediction")
+
+    # 🔥 SAFETY CHECKS
+    if "model" not in st.session_state or st.session_state.model is None:
+        st.warning("⚠️ Train model first")
+        st.stop()
+
+    if "scaler" not in st.session_state:
+        st.warning("⚠️ Run preprocessing first")
+        st.stop()
+
+    if "feature_names" not in st.session_state:
+        st.warning("⚠️ Preprocessing incomplete")
+        st.stop()
 
     model = st.session_state.model
 
-    if model is None:
-        st.warning("Train model first")
-    else:
-        inputs = []
+    st.subheader("Enter Feature Values")
 
-        for name in st.session_state.feature_names:
-            val = st.number_input(name, value=0.0)
-            inputs.append(val)
+    inputs = []
 
-        if st.button("Predict"):
+    # 🔥 DYNAMIC INPUTS (NO TARGET HERE)
+    for name in st.session_state.feature_names:
+        val = st.number_input(name, value=0.0)
+        inputs.append(val)
 
-            x = np.array(inputs).reshape(1, -1)
-            x_scaled = st.session_state.scaler.transform(x)
+    # 🔥 PREDICT BUTTON
+    if st.button("🚀 Predict"):
 
-            z = np.dot(x_scaled, model.coef_.T) + model.intercept_
-            prob = 1 / (1 + np.exp(-z))
+        x = np.array(inputs).reshape(1, -1)
 
-            st.write("z value:", z[0][0])
-            st.write("Probability:", prob[0][0])
+        # SCALE INPUT
+        x_scaled = st.session_state.scaler.transform(x)
 
-            if prob[0][0] > 0.5:
-                st.success("Class 1")
-            else:
-                st.error("Class 0")
+        # 🔥 USE SKLEARN (BEST PRACTICE)
+        pred = model.predict(x_scaled)[0]
+        prob = model.predict_proba(x_scaled)[0]
+
+        st.success(f"🎯 Predicted Class: {pred}")
+
+        # 🔥 SHOW PROBABILITY
+        st.subheader("Prediction Probability")
+
+        if len(prob) == 2:
+            st.write(f"Class 0: {prob[0]:.3f}")
+            st.write(f"Class 1: {prob[1]:.3f}")
+
+            st.progress(float(prob[1]))  # nice UI
+
+        else:
+            for i, p in enumerate(prob):
+                st.write(f"Class {i}: {p:.3f}")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
