@@ -362,8 +362,6 @@ elif page == "Training":
             with st.spinner("⏳ Training model... please wait"):
                 model.fit(X_train, y_train)
 
-            st.balloons()
-
             # ---------------- SAVE ----------------
             st.session_state.model = model
             st.session_state.X_test = X_test
@@ -423,23 +421,23 @@ elif page == "Training":
         st.warning("⚠️ Please run preprocessing first")
         st.stop()
 # ---------------- PREDICTION ----------------
-    elif page == "Prediction":
+    # ---------------- PREDICTION ----------------
+elif page == "Prediction":
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.title("🔮 Prediction")
 
-        st.title("🔮 Prediction")
-
-    # 🔥 SAFETY CHECKS
-    if "model" not in st.session_state or st.session_state.model is None:
+    # ✅ SAFETY CHECKS
+    if st.session_state.model is None:
         st.warning("⚠️ Train model first")
         st.stop()
 
-    if "scaler" not in st.session_state:
+    if st.session_state.scaler is None:
         st.warning("⚠️ Run preprocessing first")
         st.stop()
 
     if "feature_names" not in st.session_state:
-        st.warning("⚠️ Preprocessing incomplete")
+        st.warning("⚠️ Preprocessing not completed")
         st.stop()
 
     model = st.session_state.model
@@ -448,40 +446,36 @@ elif page == "Training":
 
     inputs = []
 
-    # 🔥 DYNAMIC INPUTS (NO TARGET HERE)
+    # 🔥 generate inputs
     for name in st.session_state.feature_names:
         val = st.number_input(name, value=0.0)
         inputs.append(val)
 
-    # 🔥 PREDICT BUTTON
+    # 🔥 Predict button
     if st.button("🚀 Predict"):
 
         x = np.array(inputs).reshape(1, -1)
 
-        # SCALE INPUT
+        # scale
         x_scaled = st.session_state.scaler.transform(x)
 
-        # 🔥 USE SKLEARN (BEST PRACTICE)
         pred = model.predict(x_scaled)[0]
         prob = model.predict_proba(x_scaled)[0]
 
         st.success(f"🎯 Predicted Class: {pred}")
 
-        # 🔥 SHOW PROBABILITY
-        st.subheader("Prediction Probability")
+        st.subheader("Probability")
 
         if len(prob) == 2:
             st.write(f"Class 0: {prob[0]:.3f}")
             st.write(f"Class 1: {prob[1]:.3f}")
-
-            st.progress(float(prob[1]))  # nice UI
-
+            st.progress(float(prob[1]))
         else:
             for i, p in enumerate(prob):
                 st.write(f"Class {i}: {p:.3f}")
 
     st.markdown('</div>', unsafe_allow_html=True)
-
+    
 # ---------------- EVALUATION ----------------
 # ---------------- EVALUATION ----------------
 elif page == "Evaluation":
