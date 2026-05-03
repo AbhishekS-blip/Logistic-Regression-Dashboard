@@ -223,16 +223,26 @@ elif page == "Dataset":
 
     st.title("📂 Dataset Input")
 
+    # 🔥 ADD SAMPLE DATASET BUTTON
+    if st.button("📊 Load Sample Dataset"):
+        df = pd.read_csv("sample_data.csv")   # file must exist
+        st.session_state.df = df
+        st.success("Sample dataset loaded!")
+
+    # 🔹 FILE UPLOAD
     file = st.file_uploader("Upload CSV")
 
     if file:
         df = pd.read_csv(file)
         st.session_state.df = df
         st.success("Dataset loaded")
-        st.dataframe(df.head())
 
+    # 🔹 DISPLAY DATA
     if st.session_state.df is not None:
-        st.write("Shape:", st.session_state.df.shape)
+        st.subheader("Preview")
+        st.dataframe(st.session_state.df.head())
+
+        st.write("📏 Shape:", st.session_state.df.shape)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -312,9 +322,8 @@ elif page == "Training":
 
     if st.session_state.X is None:
         st.warning("⚠️ Please run preprocessing first")
-    else:
 
-        # 👉 USER CONTROL (better for marks)
+    else:
         test_size = st.slider("Test Size (%)", 10, 50, 30) / 100
 
         if st.button("🚀 Train Model"):
@@ -330,9 +339,13 @@ elif page == "Training":
             # ---------------- MODEL ----------------
             model = LogisticRegression(max_iter=1000)
 
-            model.fit(X_train, y_train)
+            # 🔥 SPINNER
+            with st.spinner("⏳ Training model... please wait"):
+                model.fit(X_train, y_train)
 
-            # ---------------- SAVE FOR OTHER PAGES ----------------
+            st.balloons()
+
+            # ---------------- SAVE ----------------
             st.session_state.model = model
             st.session_state.X_test = X_test
             st.session_state.y_test = y_test
@@ -379,11 +392,8 @@ elif page == "Training":
 
             st.write("""
             Logistic Regression learns weights for each feature.
-            
-            It calculates:
-            z = w1*x1 + w2*x2 + ... + b
-            
-            Then applies sigmoid:
+
+            z = w1*x1 + w2*x2 + ... + b  
             probability = 1 / (1 + e^(-z))
             """)
 
