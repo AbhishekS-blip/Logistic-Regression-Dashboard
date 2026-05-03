@@ -1,4 +1,4 @@
-Logistic Regression Interactive Dashboard
+**Logistic Regression Interactive Dashboard**
 
 An interactive web application built using Streamlit to understand and explore Logistic Regression.
 
@@ -14,3 +14,6 @@ An interactive web application built using Streamlit to understand and explore L
   - Accuracy, Precision, Recall, F1-score
   - ROC Curve & AUC
   - Cross Validation
+
+## 🌐 Live Demo
+https://logistic-regression-dashboard-apcnywerbqer67k8rwsqy.streamlit.app
